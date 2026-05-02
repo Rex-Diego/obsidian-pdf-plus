@@ -77,11 +77,12 @@ export class copyLinkLib extends PDFPlusLibSubmodule {
         }
 
         const selectionStr = child.getTextSelectionRangeStr(pageEl);
-        if (!selectionStr) return null;
+        // Cross-page selections do not have a single-page selection range, but
+        // auto-copy should still copy the selected text with a page-level link.
 
         const subpath = paramsToSubpath({
             page,
-            selection: selectionStr,
+            selection: selectionStr || undefined,
             ...subpathParams
         });
 

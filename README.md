@@ -3,6 +3,12 @@
 <img src="https://img.shields.io/badge/dynamic/json?logo=obsidian&color=%238a5cf5&label=downloads&query=%24%5B%22pdf-plus%22%5D.downloads&url=https%3A%2F%2Fraw.githubusercontent.com%2Fobsidianmd%2Fobsidian-releases%2Fmaster%2Fcommunity-plugin-stats.json" alt="Obsidian Downloads">
 </p>
 
+## Fork note: cross-page auto-copy restored
+
+This public fork is based on PDF++ `0.40.31` and restores the cross-page auto-copy behavior that was still present in `0.40.9`. When auto-copy is enabled and a PDF text selection spans multiple pages, the plugin now copies the configured template with the full selected text instead of cancelling the copy because a single-page `selection=` range cannot be produced.
+
+Effect: single-page selections still copy precise `#page=...&selection=...` links; cross-page selections fall back to a page-level link such as `#page=...` while preserving `{{text}}` / `{{selection}}` in the copied output. This is intended for users who prefer the older cross-page auto-copy workflow.
+
 > [!note] 
 > I’m currently working on PDF++ v1.0.0. Because this release involves extensive refactoring, you probably won’t see any major updates for a few months—aside from minor bug fixes—until I can ship the 1.0.0 beta. But don’t worry: there’s a lot going on under the hood!
 > 

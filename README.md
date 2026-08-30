@@ -318,21 +318,26 @@ or without pipe ("|") after the callout type ("PDF"):
 > Lorem ipsum
 ```
 
-**CSS snippet**:
+**CSS snippet (for custom callout types or older PDF++ versions)**:
+
+In Obsidian 1.13 and later, `--callout-color` must be a complete CSS color. Wrap PDF++'s RGB tuple variable with `rgb(...)` as shown below. On Obsidian 1.12 and earlier, use the legacy form without `rgb(...)`.
 
 ```css
+/* Obsidian 1.13+ */
 .callout[data-callout="pdf"][data-callout-metadata="yellow"] {
-    --callout-color: var(--pdf-plus-yellow-rgb);
+    --callout-color: rgb(var(--pdf-plus-yellow-rgb));
 }
 
 .callout[data-callout="pdf"][data-callout-metadata="red"] {
-    --callout-color: var(--pdf-plus-red-rgb);
+    --callout-color: rgb(var(--pdf-plus-red-rgb));
 }
 
 .callout[data-callout="pdf"] {
-    --callout-color: var(--pdf-plus-default-color-rgb);
+    --callout-color: rgb(var(--pdf-plus-default-color-rgb));
 }
 ```
+
+For Obsidian 1.12 and earlier, replace each `rgb(var(...))` with `var(...)`.
 
 #### 2. Color by callout types
 
@@ -355,17 +360,20 @@ Another approach is to associate each highlight color to a specify callout type 
 > Lorem ipsum
 ```
 
-**CSS snippet**:
+**CSS snippet (for custom callout types or older PDF++ versions)**:
 
 ```css
+/* Obsidian 1.13+ */
 .callout[data-callout="note"] {
-    --callout-color: var(--pdf-plus-note-rgb);
+    --callout-color: rgb(var(--pdf-plus-note-rgb));
 }
 
 .callout[data-callout="important"] {
-    --callout-color: var(--pdf-plus-important-rgb);
+    --callout-color: rgb(var(--pdf-plus-important-rgb));
 }
 ```
+
+For Obsidian 1.12 and earlier, replace each `rgb(var(...))` with `var(...)`.
 
 ### Popover preview of PDF internal links
 

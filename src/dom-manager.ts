@@ -1,4 +1,4 @@
-import { MarkdownRenderChild, RGB } from 'obsidian';
+import { MarkdownRenderChild, RGB, requireApiVersion } from 'obsidian';
 
 import PDFPlus from 'main';
 import { ColorPalette } from 'color-palette';
@@ -111,24 +111,44 @@ export class DomManager extends PDFPlusComponent {
 		if (!this.plugin.settings.useCallout) return;
 
 		const calloutType = this.plugin.settings.calloutType.toLowerCase();
+		const obsidian113OrLater = requireApiVersion('1.13.0');
+		const calloutColorValue = (rgbVariable: string) => obsidian113OrLater
+			? `rgb(var(${rgbVariable}))`
+			: `var(${rgbVariable})`;
+		const directColorValue = obsidian113OrLater
+			? 'var(--callout-color)'
+			: 'rgb(var(--callout-color))';
+		const directAlphaColorValue = obsidian113OrLater
+			? 'rgb(from var(--callout-color) r g b / var(--callout-border-opacity, 0.5))'
+			: 'rgba(var(--callout-color), var(--callout-border-opacity, 0.5))';
+		const directBackgroundColorValue = obsidian113OrLater
+			? 'rgb(from var(--callout-color) r g b / var(--pdf-plus-highlight-opacity, 0.2))'
+			: 'rgba(var(--callout-color), var(--pdf-plus-highlight-opacity, 0.2))';
+		const appendCalloutColorStyle = (selector: string, varName: string) => {
+			this.styleEl.textContent += [
+				`\n${selector} {`,
+				`\t--callout-color: ${calloutColorValue(varName)};`,
+				`\t--callout-blend-mode: var(--highlight-mix-blend-mode, normal) !important;`,
+				`\tborder-color: ${directAlphaColorValue} !important;`,
+				`\tborder-inline-start-color: ${directAlphaColorValue} !important;`,
+				`\tbackground-color: ${directBackgroundColorValue} !important;`,
+				`}`,
+				`${selector} > .callout-title,`,
+				`${selector} > .callout-title .callout-icon,`,
+				`${selector} > .callout-title .callout-fold,`,
+				`${selector} > .callout-title .callout-fold svg {`,
+				`\tcolor: ${directColorValue} !important;`,
+				`}`
+			].join('\n');
+		};
 
 		for (const colorName of Object.keys(this.plugin.settings.colors)) {
 			const varName = this.toCSSVariableName(colorName) ?? '--pdf-plus-default-color-rgb';
 
-			this.styleEl.textContent += [
-				`\n.callout[data-callout="${calloutType}"][data-callout-metadata="${colorName.toLowerCase()}"] {`,
-				`	--callout-color: var(${varName});`,
-				`   background-color: rgba(var(--callout-color), var(--pdf-plus-highlight-opacity, 0.2))`,
-				`}`
-			].join('\n');
+			appendCalloutColorStyle(`.callout[data-callout="${calloutType}"][data-callout-metadata="${colorName.toLowerCase()}"]`, varName);
 		}
 
-		this.styleEl.textContent += [
-			`\n.callout[data-callout="${calloutType}"] {`,
-			`	--callout-color: var(--pdf-plus-default-color-rgb);`,
-			`   background-color: rgba(var(--callout-color), var(--pdf-plus-highlight-opacity, 0.2))`,
-			`}`
-		].join('\n');
+		appendCalloutColorStyle(`.callout[data-callout="${calloutType}"]`, '--pdf-plus-default-color-rgb');
 
 		const iconName = this.plugin.settings.calloutIcon;
 		if (iconName) {
@@ -235,7 +255,10 @@ class PDFPlusCalloutRenderer extends MarkdownRenderChild {
 			const isRgb = rgb.length === 3 && rgb.every((val) => 0 <= val && val <= 255);
 
 			if (isRgb) {
-				this.containerEl.style.setProperty('--callout-color', rgb.join(', '));
+				const color = requireApiVersion('1.13.0')
+					? `rgb(${rgb.join(', ')})`
+					: rgb.join(', ');
+				this.containerEl.style.setProperty('--callout-color', color);
 			}
 		}
 	}

@@ -538,8 +538,8 @@ export class ColorPalette extends PDFPlusComponent {
 
                 // Convert screen coordinates to PDF coordinates
                 const rect = window.pdfjsLib.Util.normalizeRect([
-                    ...pageView.getPagePoint(left, bottom),
-                    ...pageView.getPagePoint(right, top)
+                    ...(child.viewportCropController?.getPagePoint(pageView, left, bottom) ?? pageView.getPagePoint(left, bottom)),
+                    ...(child.viewportCropController?.getPagePoint(pageView, right, top) ?? pageView.getPagePoint(right, top))
                 ]) as Rect;
 
                 // Copy an embed link to the selection

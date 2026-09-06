@@ -195,8 +195,10 @@ export function* toPDFCoords(pageView: PDFPageView, screenCoords: Iterable<{ x: 
     const pageRect = pageEl.getBoundingClientRect();
 
     for (const { x, y } of screenCoords) {
-        const xRelativeToPage = x - (pageRect.left + borderLeft + paddingLeft);
-        const yRelativeToPage = y - (pageRect.top + borderTop + paddingTop);
+        const cropLeft = Number(pageEl.dataset.pdfPlusCropLeft ?? 0);
+        const cropTop = Number(pageEl.dataset.pdfPlusCropTop ?? 0);
+        const xRelativeToPage = x - (pageRect.left + borderLeft + paddingLeft) + cropLeft;
+        const yRelativeToPage = y - (pageRect.top + borderTop + paddingTop) + cropTop;
         yield pageView.getPagePoint(xRelativeToPage, yRelativeToPage) as [number, number];
     }
 }

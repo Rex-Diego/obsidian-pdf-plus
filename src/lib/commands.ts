@@ -28,6 +28,36 @@ export class PDFPlusCommands extends PDFPlusLibSubmodule {
                 id: 'rectangular-selection',
                 name: 'Start rectangular selection',
                 checkCallback: (checking) => this.copyEmbedLinkToRectangularSelection(checking, false)
+            }, {
+                id: 'viewport-crop',
+                name: 'Crop visible PDF area',
+                checkCallback: (checking) => {
+                    const child = this.lib.getPDFViewerChild(true);
+                    if (!child?.viewportCropController || child.isFileExternal || !child.file) return false;
+                    if (!checking) void child.viewportCropController.beginCropSelection();
+                    return true;
+                }
+            }, {
+                id: 'viewport-crop-manage',
+                name: 'Apply or restore current viewport crop',
+                checkCallback: (checking) => {
+                    const child = this.lib.getPDFViewerChild(true);
+                    const page = child?.pdfViewer?.pdfViewer?.currentPageNumber;
+                    if (!child?.viewportCropController || !page || !child.viewportCropController.getPageCrop(page)) return false;
+                    if (!checking) child.viewportCropController.openCropManagement();
+                    return true;
+                }
+            }, {
+                id: 'viewport-crop-restore-all',
+                name: 'Restore all viewport-cropped pages',
+                checkCallback: (checking) => {
+                    const child = this.lib.getPDFViewerChild(true);
+                    const page = child?.pdfViewer?.pdfViewer?.currentPageNumber;
+                    if (!child?.viewportCropController || !child.file || !page
+                        || !this.plugin.viewportCropStore.get(child.file.path)) return false;
+                    if (!checking) void child.viewportCropController.restore('all', page);
+                    return true;
+                }
             },
             // {
             //     id: 'create-canvas-card-from-selection',

@@ -692,3 +692,83 @@ body.pdf-plus-vim-hint-inverted {
     --pdf-plus-vim-hint-color: var(--text-on-accent);
     --pdf-plus-vim-hint-background-color: hsl(var(--accent-h), var(--accent-s), var(--accent-l));
 }
+/* Keep PDF.js layers direct children of the page while cropping both layout axes. */
+.pdf-plus-viewport-cropped {
+	overflow: hidden !important;
+	width: var(--pdf-plus-viewport-crop-width) !important;
+	height: var(--pdf-plus-viewport-crop-height) !important;
+}
+
+.pdf-plus-viewport-cropped > :is(.canvasWrapper, .textLayer, .annotationLayer, .annotationEditorLayer, .xfaLayer, .pdf-plus-backlink-highlight-layer) {
+	translate: var(--pdf-plus-viewport-crop-offset-x) var(--pdf-plus-viewport-crop-offset-y) !important;
+}
+
+.pdf-plus-viewport-cropped > .canvasWrapper {
+	width: var(--pdf-plus-viewport-page-width) !important;
+	height: var(--pdf-plus-viewport-page-height) !important;
+}
+
+.pdf-plus-viewport-crop-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 1000;
+    cursor: crosshair;
+    background: color-mix(in srgb, var(--background-primary) 18%, transparent);
+    touch-action: none;
+}
+
+.pdf-plus-viewport-crop-selection {
+    position: absolute;
+    border: 2px solid var(--interactive-accent);
+    background: color-mix(in srgb, var(--interactive-accent) 16%, transparent);
+    box-sizing: border-box;
+    pointer-events: none;
+}
+
+.pdf-plus-viewport-crop-preview {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 12rem;
+    padding: var(--size-4-3);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-s);
+    background: var(--background-secondary);
+    box-sizing: border-box;
+}
+
+.pdf-plus-viewport-crop-preview-page {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    filter: drop-shadow(0 2px 4px rgb(0 0 0 / 0.2));
+}
+
+.pdf-plus-viewport-crop-preview-paper {
+    fill: var(--background-primary);
+    stroke: var(--background-modifier-border);
+    stroke-width: 1px;
+    vector-effect: non-scaling-stroke;
+}
+
+.pdf-plus-viewport-crop-preview-excluded {
+    fill: rgb(0 0 0 / 0.28);
+}
+
+.pdf-plus-viewport-crop-preview-selection {
+    fill: color-mix(in srgb, var(--interactive-accent) 12%, var(--background-primary));
+    stroke: var(--interactive-accent);
+    stroke-width: 2px;
+    vector-effect: non-scaling-stroke;
+}
+
+.pdf-plus-viewport-crop-preview-caption {
+    margin: var(--size-4-2) 0 var(--size-4-3);
+    color: var(--text-muted);
+    font-size: var(--font-ui-smaller);
+    text-align: center;
+}
+
+.pdf-plus-viewport-crop-modal .setting-item-control input[type='number'] {
+    width: 5rem;
+}

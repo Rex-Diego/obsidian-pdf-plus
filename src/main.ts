@@ -14,6 +14,7 @@ import { InstallerVersionModal } from 'modals';
 import { PDFExternalLinkPostProcessor, PDFInternalLinkPostProcessor, PDFOutlineItemPostProcessor, PDFThumbnailItemPostProcessor } from 'post-process';
 import { BibliographyManager } from 'bib';
 import { DataviewInlineFieldsModal, withFilesWithInlineFields } from 'lib/dataview';
+import { sha256Hex, ViewportCropStore } from 'lib/viewport-crop';
 
 
 export default class PDFPlus extends Plugin {
@@ -24,6 +25,7 @@ export default class PDFPlus extends Plugin {
 	/** The plugin setting tab. */
 	settingTab: PDFPlusSettingTab;
 	events: Events = new Events();
+	viewportCropStore: ViewportCropStore = new ViewportCropStore(this);
 	/** Manages DOMs and event handlers introduced by this plugin. */
 	domManager: DomManager;
 	/** When loaded, just selecting a range of text in a PDF viewer will run the `copy-link-to-selection` command. */
@@ -187,7 +189,14 @@ export default class PDFPlus extends Plugin {
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign(this.getDefaultSettings(), await this.loadData());
+		const saved = await this.loadData() ?? {};
+		// CropBox transactions from the removed byte-writing implementation are intentionally discarded.
+		delete saved.cropBoxSnapshots;
+		delete saved.cropBoxPending;
+		delete saved.cropBoxBackups;
+		this.settings = Object.assign(this.getDefaultSettings(), saved);
+		this.viewportCropStore.load(this.settings.viewportCropDocuments);
+		this.settings.viewportCropDocuments = this.viewportCropStore.snapshot();
 
 		this.setCitationIdRegex();
 
@@ -734,6 +743,20 @@ export default class PDFPlus extends Plugin {
 				this.saveSettings();
 			}
 		}));
+		this.registerEvent(this.app.vault.on('rename', async (file, oldPath) => {
+			if (file instanceof TFile && file.extension.toLowerCase() === 'pdf' && this.viewportCropStore.get(oldPath)) {
+				try {
+					await this.viewportCropStore.rename(oldPath, file.path, await sha256Hex(await this.app.vault.readBinary(file)));
+				} catch (error) {
+					console.error(`${this.manifest.name}: Failed to verify viewport crop state after PDF rename.`, error);
+				}
+			}
+		}));
+		this.registerEvent(this.app.vault.on('delete', async (file) => {
+			if (file instanceof TFile && file.extension.toLowerCase() === 'pdf') {
+				await this.viewportCropStore.clear(file.path);
+			}
+		}));
 		this.registerEvent(this.app.vault.on('delete', (file) => {
 			if (file instanceof TFile && this.settings.newFileTemplatePath === file.path) {
 				this.settings.newFileTemplatePath = '';
@@ -876,6 +899,7 @@ export default class PDFPlus extends Plugin {
 	on(evt: 'color-palette-state-change', callback: (data: { source: ColorPalette }) => any, context?: any): EventRef;
 	on(evt: 'update-dom', callback: () => any, context?: any): EventRef;
 	on(evt: 'adapt-to-theme-change', callback: (data: { adapt: boolean }) => any, context?: any): EventRef;
+	on(evt: 'viewport-crop-state-change', callback: (fileKey: string) => any, context?: any): EventRef;
 
 	on(evt: string, callback: (...data: any) => any, context?: any): EventRef {
 		return this.events.on(evt, callback, context);
@@ -893,6 +917,7 @@ export default class PDFPlus extends Plugin {
 	trigger(evt: 'color-palette-state-change', data: { source: ColorPalette }): void;
 	trigger(evt: 'update-dom'): void;
 	trigger(evt: 'adapt-to-theme-change', data: { adapt: boolean }): void;
+	trigger(evt: 'viewport-crop-state-change', fileKey: string): void;
 
 	trigger(evt: string, ...args: any[]): void {
 		this.events.trigger(evt, ...args);

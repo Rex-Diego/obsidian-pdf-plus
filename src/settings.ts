@@ -9,6 +9,7 @@ import { ScrollMode, SidebarView, SpreadMode } from 'pdfjs-enums';
 import { Menu } from 'obsidian';
 import { PDFExternalLinkPostProcessor, PDFInternalLinkPostProcessor, PDFOutlineItemPostProcessor, PDFThumbnailItemPostProcessor } from 'post-process';
 import { BibliographyManager } from 'bib';
+import type { ViewportCropDocumentState } from 'lib/viewport-crop';
 
 
 const SELECTION_BACKLINK_VISUALIZE_STYLE = {
@@ -87,6 +88,7 @@ const MOBILE_COPY_ACTIONS = {
 } as const;
 
 export interface PDFPlusSettings {
+	viewportCropDocuments: Record<string, ViewportCropDocumentState>;
 	displayTextFormats: NamedTemplate[];
 	defaultDisplayTextFormatIndex: number,
 	syncDisplayTextFormat: boolean;
@@ -311,6 +313,7 @@ export interface PDFPlusSettings {
 }
 
 export const DEFAULT_SETTINGS: PDFPlusSettings = {
+	viewportCropDocuments: {},
 	displayTextFormats: [
 		// {
 		// 	name: 'Obsidian default',

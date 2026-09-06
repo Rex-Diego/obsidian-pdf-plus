@@ -10,6 +10,7 @@ import { Device } from '@capacitor/device';
 
 import PDFPlus from 'main';
 import { BacklinkPanePDFManager } from 'pdf-backlink';
+import { ViewportCropController } from 'lib/viewport-crop-controller';
 import { PDFViewerBacklinkVisualizer } from 'backlink-visualizer';
 import { ColorPalette } from 'color-palette';
 import { ScrollMode, SidebarView, SpreadMode } from 'pdfjs-enums';
@@ -180,6 +181,7 @@ interface PDFViewerChild {
     /** `annotationHighlight`'s counterpart for rectangle selections. */
     rectHighlight: HTMLElement | null;
     bib: BibliographyManager | null;
+    viewportCropController?: ViewportCropController;
 }
 
 interface PDFHighlight {
@@ -612,6 +614,10 @@ interface PDFJsEventMap {
     switchscrollmode: { mode: ScrollMode, source?: any };
     scalechanged: { value: string, source?: any };
     scalechanging: { source: PDFViewer, scale: number, presetValue?: number };
+    rotationchanging: { source: PDFViewer, pagesRotation: number };
+    updatetextlayermatches: { source?: unknown, pageIndex?: number };
+    updatefindmatchescount: { source?: unknown, matchesCount?: PDFSearchMatchCounts };
+    updatefindcontrolstate: { source?: unknown, state?: number, previous?: boolean, matchesCount?: PDFSearchMatchCounts };
     documentinit: { source: ObsidianViewer };
 }
 

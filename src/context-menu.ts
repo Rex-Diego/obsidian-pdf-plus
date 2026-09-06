@@ -743,6 +743,20 @@ export class PDFPlusContextMenu extends PDFPlusMenu {
             });
         }
 
+        const cropController = child.viewportCropController;
+        if (cropController && child.file && !child.isFileExternal) {
+            const hasCrop = !!cropController.getPageCrop(pageNumber);
+            this.addItem((item) => {
+                item.setSection('page')
+                    .setIcon('lucide-crop')
+                    .setTitle(hasCrop ? 'Manage viewport crop' : 'Crop visible PDF area')
+                    .onClick(() => {
+                        if (hasCrop) cropController.openCropManagement();
+                        else void cropController.beginCropSelection();
+                    });
+            });
+        }
+
         if (lib.speech.isEnabled() && selectedText && isVisible('speech')) {
             this.addItem((item) => {
                 item.setSection('speech')

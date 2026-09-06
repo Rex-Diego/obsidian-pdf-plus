@@ -16,6 +16,7 @@ import { AnnotationElement, PDFOutlineViewer, PDFViewerComponent, PDFViewerChild
 import { SidebarView, SpreadMode } from 'pdfjs-enums';
 import { VimBindings } from 'vim/vim';
 import { PDFPlusSettings } from 'settings';
+import { ViewportCropController } from 'lib/viewport-crop-controller';
 
 
 export const patchPDFInternals = async (plugin: PDFPlus, pdfViewerComponent: PDFViewerComponent): Promise<boolean> => {
@@ -133,6 +134,8 @@ const patchPDFViewerChild = (plugin: PDFPlus, child: PDFViewerChild) => {
                 this.palette = null;
                 this.rectHighlight = null;
                 this.bib = null;
+                this.viewportCropController?.unload();
+                this.viewportCropController = undefined;
 
                 if (!this.component) {
                     this.component = plugin.addChild(new Component());
@@ -140,6 +143,11 @@ const patchPDFViewerChild = (plugin: PDFPlus, child: PDFViewerChild) => {
                 this.component.load();
 
                 const ret = await old.call(this, ...args);
+
+				if (!this.viewportCropController) {
+					this.viewportCropController = new ViewportCropController(plugin, this, plugin.viewportCropStore);
+					this.viewportCropController.attach();
+				}
 
                 const viewerContainerEl = this.pdfViewer?.dom?.viewerContainerEl;
                 if (viewerContainerEl) {
@@ -285,7 +293,10 @@ const patchPDFViewerChild = (plugin: PDFPlus, child: PDFViewerChild) => {
                         eventBus.on('textlayerrendered', ({ source: pageView }) => {
                             const textLayerDiv = pageView?.textLayer?.div;
                             if (textLayerDiv) {
-                                textLayerDiv.addEventListener('copy', onCopy);
+                                if (textLayerDiv.dataset.pdfPlusViewportCopy !== 'true') {
+                                    textLayerDiv.dataset.pdfPlusViewportCopy = 'true';
+                                    textLayerDiv.addEventListener('copy', (evt) => onCopy(evt, this));
+                                }
                             }
                         });
                     }
@@ -309,6 +320,8 @@ const patchPDFViewerChild = (plugin: PDFPlus, child: PDFViewerChild) => {
         },
         unload(old) {
             return function (this: PDFViewerChild) {
+                this.viewportCropController?.unload();
+                this.viewportCropController = undefined;
                 this.component?.unload();
                 return old.call(this);
             };
@@ -320,7 +333,9 @@ const patchPDFViewerChild = (plugin: PDFPlus, child: PDFViewerChild) => {
                     plugin.pdfViewerChildren.set(pdfContainerEl, this);
                 }
 
-                return old.call(this);
+                const ret = old.call(this);
+                this.viewportCropController?.onResize();
+                return ret;
             };
         },
         loadFile(old) {
@@ -375,6 +390,17 @@ const patchPDFViewerChild = (plugin: PDFPlus, child: PDFViewerChild) => {
                     this.externalFileUrl = null;
                     await old.call(this, file, subpath);
                 }
+
+                if (!this.viewportCropController) {
+                    this.viewportCropController = new ViewportCropController(plugin, this, plugin.viewportCropStore);
+                    this.viewportCropController.attach();
+                }
+				try {
+					await this.viewportCropController.loadFile();
+				} catch (error) {
+					console.error(`${plugin.manifest.name}: Failed to load viewport crop state.`, error);
+					new Notice(`${plugin.manifest.name}: Viewport crop state could not be loaded for this PDF.`);
+				}
 
                 const pdfContainerEl = this.containerEl.querySelector<HTMLElement>('.pdf-container');
                 if (pdfContainerEl) {
@@ -746,7 +772,9 @@ const patchPDFViewerChild = (plugin: PDFPlus, child: PDFViewerChild) => {
         getPageLinkAlias(old) {
             return function (this: PDFViewerChild, page: number): string {
                 if (this.file) {
-                    const alias = lib.copyLink.getDisplayText(this, undefined, this.file, page, lib.toSingleLine(activeWindow.getSelection()?.toString() ?? ''));
+                    const visibleText = this.viewportCropController?.filterSelectionText(activeWindow.getSelection())
+                        ?? activeWindow.getSelection()?.toString() ?? '';
+                    const alias = lib.copyLink.getDisplayText(this, undefined, this.file, page, lib.toSingleLine(visibleText));
                     if (alias) return alias;
                 }
 
@@ -1022,13 +1050,15 @@ const patchPDFViewerChild = (plugin: PDFPlus, child: PDFViewerChild) => {
             return function (this: PDFViewerChild, evt: ClipboardEvent, pageView: PDFPageView) {
                 switch (plugin.settings.mobileCopyAction) {
                     case 'text':
-                        onCopy(evt);
+                        onCopy(evt, this);
                         return;
                     case 'pdf-plus':
                         setTimeout(() => lib.commands.copyLink(false));
                         return;
                     case 'obsidian':
-                        return old.call(this, evt, pageView);
+                        old.call(this, evt, pageView);
+                        onCopy(evt, this);
+                        return;
                 }
             };
         },
@@ -1049,7 +1079,12 @@ const patchPDFViewerChild = (plugin: PDFPlus, child: PDFViewerChild) => {
                 const textLayerInfo = textLayer && getTextLayerInfo(textLayer);
                 if (textLayerInfo) {
                     const { textContentItems: items, textDivs: divs } = textLayerInfo;
-                    const [left, bottom, right, top] = rect;
+                    const crop = this.viewportCropController?.getPageCrop(pageView.id);
+                    const [rawLeft, rawBottom, rawRight, rawTop] = rect;
+                    const left = crop && !crop.stale ? Math.max(rawLeft, crop.rect.x) : rawLeft;
+                    const bottom = crop && !crop.stale ? Math.max(rawBottom, crop.rect.y) : rawBottom;
+                    const right = crop && !crop.stale ? Math.min(rawRight, crop.rect.x + crop.rect.width) : rawRight;
+                    const top = crop && !crop.stale ? Math.min(rawTop, crop.rect.y + crop.rect.height) : rawTop;
 
                     for (let index = 0; index < items.length; index++) {
                         const item = items[index];
@@ -1087,18 +1122,18 @@ const patchPDFViewerChild = (plugin: PDFPlus, child: PDFViewerChild) => {
         },
     }));
 
-    const onCopy = (evt: ClipboardEvent) => {
-        if (!plugin.settings.copyAsSingleLine) return;
+	const onCopy = (evt: ClipboardEvent, child?: PDFViewerChild) => {
+		const dataTransfer = evt.clipboardData;
+		if (!dataTransfer) return;
 
-        const dataTransfer = evt.clipboardData;
-        if (!dataTransfer) return;
-
-        let text = (evt.target as HTMLElement).win.getSelection()?.toString(); // dataTransfer.getData('text/plain');
-        if (text) {
-            text = lib.toSingleLine(text);
-            dataTransfer.setData('text/plain', text);
-        }
-    };
+		const selection = child?.containerEl.doc.getSelection() ?? (evt.target as HTMLElement | null)?.win?.getSelection();
+		const cropController = child?.viewportCropController;
+		if (!selection || (!plugin.settings.copyAsSingleLine && !cropController?.hasActiveCrop())) return;
+		let text = cropController?.filterSelectionText(selection) ?? selection.toString();
+		if (plugin.settings.copyAsSingleLine) text = lib.toSingleLine(text);
+		evt.preventDefault();
+		dataTransfer.setData('text/plain', text);
+	};
 };
 
 /** Monkey-patch ObsidianViewer so that it can open external PDF files. */

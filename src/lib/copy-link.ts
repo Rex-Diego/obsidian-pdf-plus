@@ -93,7 +93,7 @@ export class copyLinkLib extends PDFPlusLibSubmodule {
             page,
             pageCount: child.pdfViewer.pagesCount,
             pageLabel: child.getPage(page).pageLabel ?? ('' + page),
-            text: this.lib.toSingleLine(selection.toString()),
+            text: this.lib.toSingleLine(child.viewportCropController?.filterSelectionText(selection) ?? selection.toString()),
         };
     }
 
